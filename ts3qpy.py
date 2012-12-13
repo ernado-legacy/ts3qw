@@ -17,7 +17,6 @@ class QueryClient:
 
     def __init__(self, host, port=10011):
         """
-        :host: trollo
         :type host: str
         :type port: int
         """
@@ -27,12 +26,11 @@ class QueryClient:
         self.tn = None
         ch = logging.StreamHandler()
         ch.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter('%(asctime)s.%(msecs)d [%(levelname)s] %(message)s', r'%d.%m.%y %H:%M:%S')
         ch.setFormatter(formatter)
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.DEBUG)
         self.logger.addHandler(ch)
-        self.connect()
 
     def connect(self):
         self.logger.debug('Connecting to %s:%s' % (self.host, self.port))
@@ -46,6 +44,7 @@ class QueryClient:
 
     def disconnect(self):
         if self.tn:
+            self.logger.debug('Connection closed')
             self.tn.close()
             self.tn = None
 
