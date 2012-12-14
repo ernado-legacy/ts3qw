@@ -48,7 +48,8 @@ class QueryClient:
             self.logger.error('Server is not Teamspeak 3 server')
             raise ConnectionFailed
 
-        self.read(timeout=0.1)  # clear buffer
+        reply = self.read('command.\n\r', 0.5)  # clear buffer
+        #print [reply.endswith('command.\n\r')]
         self.logger.debug('Connection established successfully, buffer is cleared')
 
     def disconnect(self):
@@ -63,7 +64,7 @@ class QueryClient:
     def read(self, until='msg=ok', timeout=None):
         if not timeout:
             timeout = self.timeout
-        self.logger.debug('Receiving message with timeout of %s seconds until "%s"' % (timeout, until))
+        self.logger.debug('Receiving message with timeout of %s seconds until %s' % (timeout, repr(until)))
         return self.tn.read_until(until, timeout)
 
     def write(self, msg):
@@ -82,13 +83,6 @@ class QueryClient:
         self.logger.debug('Received %s chars' % len(reply))
         return reply
 
-
-def main():
-    q = QueryClient('cygame.ru')
-    q.connect()
-    s = q.command('help')
-    print s.split('\n')[-1]
-    return True
 
 #    #if __name__ == '__main__':
 #    q = QueryClient('cygame.ru')
