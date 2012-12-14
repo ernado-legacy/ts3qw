@@ -7,7 +7,6 @@ HOST_G = HOST
 PORT = 10011
 TOKEN = ''
 
-
 from local import *
 
 
@@ -15,7 +14,15 @@ class ServerDeterminationTest(unittest.TestCase):
     def setUp(self):
         self.q = ts3qpy.QueryClient(HOST_G, 22)
 
-    def test_connect(self):
+    def test_connect_notTS3(self):
+        error = False
+        try:
+            self.q.connect()
+        except ts3qpy.ConnectionFailed:
+            error = True
+        self.assertTrue(error)
+
+    def test_connect_socketError(self):
         error = False
         try:
             self.q.connect()
@@ -33,9 +40,6 @@ class InitCase(unittest.TestCase):
         self.q.connect()
         self.start = datetime.datetime.now()
 
-    def test_main(self):
-        self.assertTrue(ts3qpy.main())
-
     def tearDown(self):
         self.q.disconnect()
 
@@ -46,9 +50,16 @@ class ConnectionCase(InitCase):
 
 
 class TestCommands(InitCase):
-    def test_command(self):
+    def test_command_help(self):
         reply = self.q.command('help')
         self.assertTrue(reply.endswith('ok'))
+
+
+class TestWithStatement(unittest.TestCase):
+    def test_with(self):
+        with ts3qpy.QueryClient(HOST, PORT) as q:
+            reply = q.command('help')
+            self.assertTrue(reply.endswith('ok'))
 
 
 #if __name__ == '__main__':

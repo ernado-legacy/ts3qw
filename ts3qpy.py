@@ -6,9 +6,25 @@ import time
 import logging
 
 
-class ConnectionFailed(Exception):
+# ERRORS
+
+class QueryError(Exception):
     pass
 
+
+class ConnectionFailed(QueryError):
+    pass
+
+
+class NotATeaspeak3Server(ConnectionFailed):
+    pass
+
+
+class SocketError(ConnectionFailed):
+    pass
+
+
+# MAIN CLASS
 
 class QueryClient:
     """
@@ -22,7 +38,7 @@ class QueryClient:
         """
         self.host = host
         self.port = port
-        self.timeout = 5
+        self.timeout = 1
         self.tn = None
         ch = logging.StreamHandler()
         ch.setLevel(logging.DEBUG)
@@ -38,15 +54,19 @@ class QueryClient:
         Checks the telnet output for teamspeak server
         """
         self.logger.debug('Connecting to %s:%s' % (self.host, self.port))
-        self.tn = telnetlib.Telnet(self.host, self.port, self.timeout)
+        try:
+            self.tn = telnetlib.Telnet(self.host, self.port, self.timeout)
+        except telnetlib.socket.error:
+            self.logger.error('No telnet server at %s:%s or connection timeout' % (self.host,self.port))
+            raise SocketError
         self.logger.debug('Connected')
         self.logger.debug('Testing connection')
         reply = self.read('TS')
 
         # Check if it is TS3 server
         if reply != 'TS':
-            self.logger.error('Server is not Teamspeak 3 server')
-            raise ConnectionFailed
+            self.logger.error('No Teamspeak 3 server at %s:%s' % (self.host,self.port))
+            raise NotATeaspeak3Server
 
         reply = self.read('command.\n\r', 0.5)  # clear buffer
         #print [reply.endswith('command.\n\r')]
@@ -83,9 +103,12 @@ class QueryClient:
         self.logger.debug('Received %s chars' % len(reply))
         return reply
 
+    def __enter__(self):
+        self.connect()
+        return self
 
-#    #if __name__ == '__main__':
-#    q = QueryClient('cygame.ru')
-#    q.connect()
-#    s = q.command('help')
-#    print s.split('\n')[-1]
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.disconnect()
+
+    def __del__(self):
+        self.disconnect()
