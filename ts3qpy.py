@@ -33,39 +33,57 @@ class QueryClient:
         self.logger.addHandler(ch)
 
     def connect(self):
+        """
+        Connects to Teamspeak 3 server on host:port
+        Checks the telnet output for teamspeak server
+        """
         self.logger.debug('Connecting to %s:%s' % (self.host, self.port))
         self.tn = telnetlib.Telnet(self.host, self.port, self.timeout)
-        self.logger.debug('Receiving message')
-        reply = self.tn.read_until('TS', self.timeout)
+        self.logger.debug('Connected')
+        self.logger.debug('Testing connection')
+        reply = self.read('TS')
+
+        # Check if it is TS3 server
         if reply != 'TS':
             self.logger.error('Server is not Teamspeak 3 server')
             raise ConnectionFailed
-        self.logger.debug('Connected')
+
+        self.read(timeout=0.1)  # clear buffer
+        self.logger.debug('Connection established successfully, buffer is cleared')
 
     def disconnect(self):
+        """
+        Disconnects from the server if there is active connection
+        """
         if self.tn:
             self.logger.debug('Connection closed')
             self.tn.close()
             self.tn = None
 
+    def read(self, until='msg=ok', timeout=None):
+        if not timeout:
+            timeout = self.timeout
+        self.logger.debug('Receiving message with timeout of %s seconds until "%s"' % (timeout, until))
+        return self.tn.read_until(until, timeout)
 
-HOST = "cygame.ru"
-PORT = 10011
-TIMEOUT = 5
-#user = raw_input("Enter your remote account: ")
-#password = getpass.getpass()
+    def write(self, msg):
+        return self.tn.write(msg)
 
-#tn = telnetlib.Telnet(HOST, port=10011, timeout=TIMEOUT)
-#o = tn.read_until('TS3', TIMEOUT)
-#print o
-#tn.write('help\n')
-#print tn.read_until('msg=ok', TIMEOUT)
-if __name__ == '__main__':
-    q = QueryClient('cygame.ru')
-#
-#if password:
-#    tn.read_until("Password: ")
-#    tn.write(password + "\n")
-#
-#tn.write("ls\n")
-#tn.write("exit\n")
+    def command(self, cmd, timeout=None):
+        """
+        Returns the telnet reply from server after executing command cmd
+        :type cmd: str
+        """
+        if not timeout:
+            timeout = self.timeout
+        self.logger.debug('Executing command %s' % cmd)
+        self.write(cmd + '\n')
+        reply = self.read(timeout=timeout)
+        self.logger.debug('Received %s chars' % len(reply))
+        return reply
+
+#if __name__ == '__main__':
+#    q = QueryClient('cygame.ru')
+#    q.connect()
+#    s = q.command('help')
+#    print s.split('\n')[-1]
