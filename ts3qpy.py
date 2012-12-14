@@ -82,7 +82,15 @@ class QueryClient:
         self.logger.debug('Received %s chars' % len(reply))
         return reply
 
-#if __name__ == '__main__':
+
+def main():
+    q = QueryClient('cygame.ru')
+    q.connect()
+    s = q.command('help')
+    print s.split('\n')[-1]
+    return True
+
+#    #if __name__ == '__main__':
 #    q = QueryClient('cygame.ru')
 #    q.connect()
 #    s = q.command('help')
