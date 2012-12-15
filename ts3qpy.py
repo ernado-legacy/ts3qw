@@ -6,9 +6,25 @@ import time
 import logging
 
 
-class ConnectionFailed(Exception):
+# ERRORS
+
+class QueryError(Exception):
     pass
 
+
+class ConnectionFailed(QueryError):
+    pass
+
+
+class NotATeaspeak3Server(ConnectionFailed):
+    pass
+
+
+class SocketError(ConnectionFailed):
+    pass
+
+
+# MAIN CLASS
 
 class QueryClient:
     """
@@ -17,56 +33,82 @@ class QueryClient:
 
     def __init__(self, host, port=10011):
         """
-        :host: trollo
         :type host: str
         :type port: int
         """
         self.host = host
         self.port = port
-        self.timeout = 5
+        self.timeout = 1
         self.tn = None
         ch = logging.StreamHandler()
         ch.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter('%(asctime)s.%(msecs)d [%(levelname)s] %(message)s', r'%d.%m.%y %H:%M:%S')
         ch.setFormatter(formatter)
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.DEBUG)
         self.logger.addHandler(ch)
-        self.connect()
 
     def connect(self):
+        """
+        Connects to Teamspeak 3 server on host:port
+        Checks the telnet output for teamspeak server
+        """
         self.logger.debug('Connecting to %s:%s' % (self.host, self.port))
-        self.tn = telnetlib.Telnet(self.host, self.port, self.timeout)
-        self.logger.debug('Receiving message')
-        reply = self.tn.read_until('TS', self.timeout)
-        if reply != 'TS':
-            self.logger.error('Server is not Teamspeak 3 server')
-            raise ConnectionFailed
+        try:
+            self.tn = telnetlib.Telnet(self.host, self.port, self.timeout)
+        except telnetlib.socket.error:
+            self.logger.error('No telnet server at %s:%s or connection timeout' % (self.host,self.port))
+            raise SocketError
         self.logger.debug('Connected')
+        self.logger.debug('Testing connection')
+        reply = self.read('TS')
+
+        # Check if it is TS3 server
+        if reply != 'TS':
+            self.logger.error('No Teamspeak 3 server at %s:%s' % (self.host,self.port))
+            raise NotATeaspeak3Server
+
+        reply = self.read('command.\n\r', 0.5)  # clear buffer
+        #print [reply.endswith('command.\n\r')]
+        self.logger.debug('Connection established successfully, buffer is cleared')
 
     def disconnect(self):
+        """
+        Disconnects from the server if there is active connection
+        """
         if self.tn:
+            self.logger.debug('Connection closed')
             self.tn.close()
             self.tn = None
 
+    def read(self, until='msg=ok', timeout=None):
+        if not timeout:
+            timeout = self.timeout
+        self.logger.debug('Receiving message with timeout of %s seconds until %s' % (timeout, repr(until)))
+        return self.tn.read_until(until, timeout)
 
-HOST = "cygame.ru"
-PORT = 10011
-TIMEOUT = 5
-#user = raw_input("Enter your remote account: ")
-#password = getpass.getpass()
+    def write(self, msg):
+        return self.tn.write(msg)
 
-#tn = telnetlib.Telnet(HOST, port=10011, timeout=TIMEOUT)
-#o = tn.read_until('TS3', TIMEOUT)
-#print o
-#tn.write('help\n')
-#print tn.read_until('msg=ok', TIMEOUT)
-if __name__ == '__main__':
-    q = QueryClient('cygame.ru')
-#
-#if password:
-#    tn.read_until("Password: ")
-#    tn.write(password + "\n")
-#
-#tn.write("ls\n")
-#tn.write("exit\n")
+    def command(self, cmd, timeout=None):
+        """
+        Returns the telnet reply from server after executing command cmd
+        :type cmd: str
+        """
+        if not timeout:
+            timeout = self.timeout
+        self.logger.debug('Executing command %s' % cmd)
+        self.write(cmd + '\n')
+        reply = self.read(timeout=timeout)
+        self.logger.debug('Received %s chars' % len(reply))
+        return reply
+
+    def __enter__(self):
+        self.connect()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.disconnect()
+
+    def __del__(self):
+        self.disconnect()
