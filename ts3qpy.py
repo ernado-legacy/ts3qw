@@ -68,8 +68,7 @@ class QueryClient:
             self.logger.error('No Teamspeak 3 server at %s:%s' % (self.host,self.port))
             raise NotATeaspeak3Server
 
-        reply = self.read('command.\n\r', 0.5)  # clear buffer
-        #print [reply.endswith('command.\n\r')]
+        self.read('command.\n\r', 0.5)  # clear buffer
         self.logger.debug('Connection established successfully, buffer is cleared')
 
     def disconnect(self):
@@ -102,6 +101,39 @@ class QueryClient:
         reply = self.read(timeout=timeout)
         self.logger.debug('Received %s chars' % len(reply))
         return reply
+
+    def use(self, sid):
+        self.command('use %s' % sid)
+
+    def clientList(self):
+        return self.command('clientlist')
+
+    def say(self, message):
+        self.command('gm %s' % message)
+
+    def userCount(self):
+        """
+        Get real user count
+        """
+        return len(self.users())
+
+    def users(self):
+        d = str(self.clientList()).split('|')
+        d[-1] = d[-1][:-19]
+        users = []
+        for x in d:
+            recieved = {}
+            for a in x.split(' '):
+                data = a.split('=')
+                if len(data) == 2:
+                    recieved.update({data[0]: data[1]})
+            if 'client_nickname' in recieved:
+                users.append(recieved)
+        normal_users = []
+        for user in users:
+            if user['client_type'] == '0':
+                normal_users.append(user['client_nickname'])
+        return normal_users
 
     def __enter__(self):
         self.connect()

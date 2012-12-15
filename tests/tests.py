@@ -18,20 +18,23 @@ class ServerDeterminationTest(unittest.TestCase):
         error = False
         try:
             self.q.connect()
-        except ts3qpy.ConnectionFailed:
+        except ts3qpy.NotATeaspeak3Server:
             error = True
         self.assertTrue(error)
 
     def test_connect_socketError(self):
         error = False
+        self.q.disconnect()
+        self.q = ts3qpy.QueryClient('0.0.0.0',22)
         try:
             self.q.connect()
-        except ts3qpy.ConnectionFailed:
+        except ts3qpy.SocketError:
             error = True
         self.assertTrue(error)
 
     def tearDown(self):
         self.q.disconnect()
+
 
 
 class InitCase(unittest.TestCase):
