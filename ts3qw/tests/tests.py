@@ -1,13 +1,13 @@
 import unittest
-import ts3qpy
 import datetime
+from ts3qw import ts3qpy
 
 HOST = '127.0.0.1'
 HOST_G = HOST
 PORT = 10011
 TOKEN = ''
 
-from local import *
+from ts3qw.tests.local import *
 
 
 class ServerDeterminationTest(unittest.TestCase):

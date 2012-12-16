@@ -1,2 +1,2 @@
-import ts3qpy
-ts3qpy.main()
+from ts3qw import ts3qpy
+
